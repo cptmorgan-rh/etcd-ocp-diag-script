@@ -12,7 +12,7 @@ run() {
 
   eval set -- "$options"
 
-  while true; do
+  while [[ "$1" != "" ]]; do
     case "$1" in
        --previous)
         previous=true; shift;;
@@ -86,15 +86,15 @@ Options:
   --errors       Displays known errors in the etcd logs along with their count
   --stats        Displays Stats and Calculates Avg, Max, Min, and Median times for etcd errors
   --ttl          Displays 'took too long' errors
-  --heartbeart   Displays 'leader failed to send out heartbeat on time' errors
+  --heartbeat   Displays 'leader failed to send out heartbeat on time' errors
   --election     Displays 'elected leader' and 'lost leader' errors
   --fdatasync    Displays 'slow fdatasync' errors
   --buffer       Displays 'sending buffer is full' errors
   --previous     Displays output using the 'previous' log if it exists
   --pod          Specify the name of the pod to search
-                 Example: etcd-ocp-diag.sh --ttl --pod etcd-ocp-np-sth-master2
+                 Example: etcd-ocp-diag.sh --ttl --pod etcd-ocp-master2
   --date         Specify the date in YYYY-MM-DD format
-                 Example: etcd-ocp-diag.sh --ttl --pod etcd-ocp-np-sth-master2 --date 2023-08-30
+                 Example: etcd-ocp-diag.sh --ttl --pod etcd-ocp-master2 --date 2023-08-30
                  Example: etcd-ocp-diag.sh --election --date 2023-08-30
   --time         Opens Pod Logs in less with specified time; Specify the time HH:MM format
                  etcd-ocp-diag.sh --ttl --pod etcd-ocp-np-sth-master2 --date 2023-08-30 --time 02:00
@@ -310,6 +310,8 @@ fi
 if [ "${#etcd_search_arr[1]}" != 0 ]; then
   printf '%s\n' "${etcd_search_arr[@]}" | column -t -s '|'
   printf "\n"
+else
+  printf '%s\n' "No results found for: $1"
 fi
 
 unset etcd_search_arr
