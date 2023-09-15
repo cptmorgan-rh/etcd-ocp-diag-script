@@ -177,6 +177,7 @@ for i in namespaces/openshift-etcd/pods/etcd*/etcd/etcd/logs/"$logs".log; do
       printf "\tMinimum: $(echo ${median_arr[@]} | jq -s '{minimum:min}' | jq -r '.minimum')ms\n"
       printf "\tMedian: $(echo ${median_arr[@]} | jq -s '{median:(sort|if length%2==1 then.[length/2|floor]else[.[length/2-1,length/2]]|add/2|round end)}' | jq -r '.median')ms\n"
       printf "\tAverage: $(echo ${median_arr[@]} | jq -s '{average:(add/length|round)}' | jq -r '.average')ms\n"
+      printf "\tCount: $(echo ${median_arr[@]} | jq -s '{count:length}' | jq -r '.count')\n"
       printf "\tExpected: ${expected}\n"
       printf "\n"
 
@@ -213,6 +214,7 @@ for i in namespaces/openshift-etcd/pods/etcd*/etcd/etcd/logs/"$logs".log; do
       printf "\tMinimum: $(echo ${median_arr[@]} | jq -s '{minimum:min}' | jq -r '.minimum')ms\n"
       printf "\tMedian: $(echo ${median_arr[@]} | jq -s '{median:(sort|if length%2==1 then.[length/2|floor]else[.[length/2-1,length/2]]|add/2|round end)}' | jq -r '.median')ms\n"
       printf "\tAverage: $(echo ${median_arr[@]} | jq -s '{average:(add/length|round)}' | jq -r '.average')ms\n"
+      printf "\tCount: $(echo ${median_arr[@]} | jq -s '{count:length}' | jq -r '.count')\n"
       printf "\tExpected: ${expected}\n"
       printf "\n"
 
@@ -242,6 +244,7 @@ for i in namespaces/openshift-etcd/pods/etcd*/etcd/etcd/logs/"$logs".log; do
       printf "\tMinimum: $(echo ${median_arr[@]} | jq -s '{minimum:min}' | jq -r '.minimum')ms\n"
       printf "\tMedian: $(echo ${median_arr[@]} | jq -s '{median:(sort|if length%2==1 then.[length/2|floor]else[.[length/2-1,length/2]]|add/2|round end)}' | jq -r '.median')ms\n"
       printf "\tAverage: $(echo ${median_arr[@]} | jq -s '{average:(add/length|round)}' | jq -r '.average')ms\n"
+      printf "\tCount: $(echo ${median_arr[@]} | jq -s '{count:length}' | jq -r '.count')\n"
       printf "\n"
 
       unset median_arr
@@ -265,7 +268,7 @@ if [[ "$pod" == "" && "$date" == "" ]]; then
 fi
 
 #Prints Speficied Pod, all days, and error count
-#Example: etcd-ocp-diag.sh --ttl --pod etcd-ocp-np-sth-master2
+#Example: etcd-ocp-diag.sh --ttl --pod etcd-ocp-master2
 if [[ "$pod" != "" && "$date" == "" ]]; then
   if [ -d namespaces/openshift-etcd/pods/"$pod"/etcd/etcd/logs/ ]; then
     # set column names
@@ -287,7 +290,7 @@ if [[ "$pod" == "" && "$date" != "" ]]; then
 fi
 
 #Prints specified pod, day, and error count by hour
-#Example: etcd-ocp-diag.sh --ttl --pod etcd-ocp-np-sth-master2 --date 2023-08-29
+#Example: etcd-ocp-diag.sh --ttl --pod etcd-ocp-master2 --date 2023-08-29
 if [[ "$pod" != "" && "$date" != "" && "$time" == "" ]]; then
   # set column names
   etcd_search_arr=("TIME|COUNT")
@@ -297,7 +300,7 @@ if [[ "$pod" != "" && "$date" != "" && "$time" == "" ]]; then
 fi
 
 #Prints specified pod, day, and error count by hour
-#Example: etcd-ocp-diag.sh --ttl --pod etcd-ocp-np-sth-master2 --date 2023-08-29 --time 02:00
+#Example: etcd-ocp-diag.sh --ttl --pod etcd-ocp-master2 --date 2023-08-29 --time 02:00
 if [[ "$pod" != "" && "$date" != "" && "$time" != "" ]]; then
   if [ -f namespaces/openshift-etcd/pods/"$pod"/etcd/etcd/logs/"$logs"*log ]; then
     grep -E "$date" namespaces/openshift-etcd/pods/"$pod"/etcd/etcd/logs/"$logs"*log | grep -C10 "$time" | less

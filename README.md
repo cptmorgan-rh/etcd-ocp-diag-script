@@ -72,6 +72,7 @@ Stats about etcd 'took long' messages: etcd-ocp-master0
 	Minimum: 201.846969ms
 	Median: 980ms
 	Average: 1175ms
+	Count: 696
 	Expected: 200ms
 
 Stats about etcd 'took long' messages: etcd-ocp-master1
@@ -81,6 +82,7 @@ Stats about etcd 'took long' messages: etcd-ocp-master1
 	Minimum: 203.934898ms
 	Median: 532.362165ms
 	Average: 583ms
+	Count: 313
 	Expected: 200ms
 
 Stats about etcd 'took long' messages: etcd-ocp-master2
@@ -90,6 +92,7 @@ Stats about etcd 'took long' messages: etcd-ocp-master2
 	Minimum: 200.016363ms
 	Median: 482.516943ms
 	Average: 853ms
+	Count: 9582
 	Expected: 200ms
 
 Stats about etcd 'slow fdatasync' messages: etcd-ocp-master2
@@ -99,25 +102,29 @@ Stats about etcd 'slow fdatasync' messages: etcd-ocp-master2
 	Minimum: 1002.78933ms
 	Median: 1519ms
 	Average: 4480ms
+	Count: 12
 	Expected: 1s
 
-etcd DB Compaction times: etcd-ocp-master0
-	Maximum: 3283.36771ms
-	Minimum: 1832.36697ms
-	Median: 1993ms
-	Average: 2024ms
+etcd DB Compaction times: etcd-ocp-np-sth-master0
+	Maximum: 2918.12808ms
+	Minimum: 1820.23331ms
+	Median: 2041ms
+	Average: 2060
+	Count: 492ms
 
-etcd DB Compaction times: etcd-ocp-master1
-	Maximum: 4875.56210ms
-	Minimum: 1991.80232ms
-	Median: 2218.90229ms
-	Average: 2244ms
+etcd DB Compaction times: etcd-ocp-np-sth-master1
+	Maximum: 2409.09816ms
+	Minimum: 1670.84453ms
+	Median: 1861ms
+	Average: 1876
+	Count: 494ms
 
-etcd DB Compaction times: etcd-ocp-master2
-	Maximum: 5946.93666ms
-	Minimum: 1826.25978ms
-	Median: 2814.04579ms
-	Average: 2694ms
+etcd DB Compaction times: etcd-ocp-np-sth-master2
+	Maximum: 2664.11661ms
+	Minimum: 1717.23653ms
+	Median: 1982ms
+	Average: 2000
+	Count: 496ms
 ```
 
 ```bash
