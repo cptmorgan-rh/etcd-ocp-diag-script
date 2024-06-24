@@ -4,7 +4,7 @@ etcd Diagnostics
 DESCRIPTION
 ------------
 
-The purpose of this script is to quickly search logs for known etcd issues in an Openpyift Must-Gather.
+The purpose of this script is to quickly search logs for known etcd issues in an Openshift Must-Gather.
 
 INSTALLATION
 ------------
@@ -13,7 +13,7 @@ INSTALLATION
 USAGE
 ------------
 
-```bapy
+```python
 Options:
   --path         Sets the path of the must-gather
                   Example: etcd-ocp-diag.py --path <MG_PATH>
