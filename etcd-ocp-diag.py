@@ -100,7 +100,7 @@ def msg_count(directories: str, error_txt: str, err_date: str):
                 for log in rotated_logs_list:
                     with open(f'{log}', 'r') as file:
                         for line in file:
-                            if err_date_search == True:
+                            if err_date_search:
                                 if error_txt in line:
                                     if err_date in line:
                                         for result in extract_json_objects(line):
@@ -112,16 +112,9 @@ def msg_count(directories: str, error_txt: str, err_date: str):
                                     for result in extract_json_objects(line):
                                         ts_date, _ = result.get('ts', 'Unknown').split('T')
                                         json_dates[ts_date] += 1
-
-                        for date, count in json_dates.items():
-                            errors.append({
-                                'POD': etcd_pod,
-                                'DATE': date,
-                                'COUNT': count
-                            })
         with open(f'{directory}/etcd/etcd/logs/{pod_log_version}.log', 'r') as file:
             for line in file:
-                if err_date_search == True:
+                if err_date_search:
                     if error_txt in line:
                         if err_date in line:
                             for result in extract_json_objects(line):
@@ -133,15 +126,12 @@ def msg_count(directories: str, error_txt: str, err_date: str):
                         for result in extract_json_objects(line):
                             ts_date, _ = result.get('ts', 'Unknown').split('T')
                             json_dates[ts_date] += 1
-
-            for date, count in json_dates.items():
-                errors.append({
-                    'POD': etcd_pod,
-                    'DATE': date,
-                    'COUNT': count
-                })
-
-
+    for date, count in json_dates.items():
+        errors.append({
+            'POD': etcd_pod,
+            'DATE': date,
+            'COUNT': count
+        })
     if len(errors) != 0:
         print_rows(errors)
     else:
