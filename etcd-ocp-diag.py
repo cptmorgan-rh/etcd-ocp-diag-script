@@ -212,6 +212,7 @@ def etcd_stats(directories: str, error_txt: str):
         # Set Variables
         first_err = None
         last_err = None
+        etcd_pod = get_etcd_pod(directory)
         error_count = 0
         etcd_error_stats: list = []
         if rotated_logs:
