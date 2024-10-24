@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 
-import os, glob, sys, json, re, getopt
+import os, glob, sys, json, re, getopt, argparse
 from datetime import datetime
 from collections import Counter
 from statistics import median
+from datetime import datetime
 
 def extract_json_objects(text):
     '''Find JSON objects in text, and yield the decoded JSON data'''
@@ -141,7 +142,10 @@ def msg_count(directories: str, error_txt: str, err_date: str):
             })
             json_dates.clear()
     if len(errors) != 0:
-        print_rows(errors)
+        if compare_times == True:
+            compare(errors)
+        else:
+            print_rows(errors)
     else:
         print(f'No errors for "{error_txt}".')
         sys.exit(0)
@@ -164,6 +168,27 @@ def print_rows(errors_list):
         for key in row.keys():
             print(f'{row[key]:{max_widths[key]}}', end='\t')
         print()
+
+def compare(errors_list):
+    '''Compares error counts for the same DATE across different PODs'''
+    # Create a dictionary to group counts by DATE
+    date_groups = {}
+
+    # Group counts by date
+    for entry in errors_list:
+        date = entry['DATE']
+        if date not in date_groups:
+            date_groups[date] = []
+        date_groups[date].append(entry)
+
+    # Print results for each date with more than one pod
+    for date, entries in date_groups.items():
+        if len(entries) > 1:  # Only compare if there are multiple pods
+            print(f'Date: {date}')
+            print(f'{"POD":<30} {"COUNT":<10}')
+            for entry in entries:
+                print(f'{entry["POD"]:<30} {entry["COUNT"]:<10}')
+            print()
 
 def get_dirs():
     '''Returns the directory for etcd pods'''
@@ -207,12 +232,7 @@ def etcd_stats(directories: str, error_txt: str):
     '''Returns the performance stats of the etcd pod'''
     global rotated_logs
     for directory in directories:
-        # Set Variables
-        first_err = None
-        last_err = None
         etcd_pod = get_etcd_pod(directory)
-        error_count = 0
-        etcd_error_stats: list = []
         if rotated_logs:
             #Check to see if rotated logs exist
             rotated_logs_list = get_rotated_logs(directory)
@@ -220,63 +240,48 @@ def etcd_stats(directories: str, error_txt: str):
                 #Parse rotated logs if they do exist
                 for log in rotated_logs_list:
                     with open(f'{log}', 'r') as file:
-                        for line in file:
-                            # Check if the line contains the following error
-                            if error_txt in line:
-                                #Count the amount of took too long errors
-                                error_count += 1
-                                # Find the last error's timestamp
-                                last_err = re.findall(r'(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?=\.\d+Z|\s|\Z)', line)
-                                # Find the first error's timestamp
-                                if first_err == None:
-                                    first_err = re.findall(r'(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?=\.\d+Z|\s|\Z)', line)
-                                # Sending the data to have the JSON Extracted
-                                for result in extract_json_objects(line):
-                                    # Set the variable based on the took results
-                                    took_time = result['took']
-                                    # Collect the expected time
-                                    expected_time = result['expected-duration']
-                                    # Check if the time is in ms and convert
-                                    if 'ms' in took_time:
-                                        etcd_error_stats.append(float(took_time.removesuffix('ms')))
-                                    # Check if the time is in seconds and convert
-                                    elif 's' in took_time:
-                                        etcd_error_stats.append(float(took_time.removesuffix('s')) * 1000)
-                                    # Check if the time is in minutes and convert
-                                    elif 'm' in took_time:
-                                        took_min, took_sec = took_time.split('m')
-                                        etcd_error_stats.append(((float(took_min) * 60000) + (float(took_sec) * 1000)))
+                        calc_etcd_stats(error_txt,file,etcd_pod)
         #Check to see if the error_txt exists prior to parsing the file
         if parse_file(f'{directory}/etcd/etcd/logs/{pod_log_version}.log', error_txt):
             # Open each pod log (current.log, previous.log) file to be read
             with open(f'{directory}/etcd/etcd/logs/{pod_log_version}.log', 'r') as file:
-                for line in file:
-                    # Check if the line contains the following error
-                    if error_txt in line:
-                        #Count the amount of took too long errors
-                        error_count += 1
-                        # Find the last error's timestamp
-                        last_err = re.findall(r'(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?=\.\d+Z|\s|\Z)', line)
-                        # Find the first error's timestamp
-                        if first_err == None:
-                            first_err = re.findall(r'(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?=\.\d+Z|\s|\Z)', line)
-                        # Sending the data to have the JSON Extracted
-                        for result in extract_json_objects(line):
-                            # Set the variable based on the took results
-                            took_time = result['took']
-                            # Collect the expected time
-                            expected_time = result['expected-duration']
-                            # Check if the time is in ms and convert
-                            if 'ms' in took_time:
-                                etcd_error_stats.append(float(took_time.removesuffix('ms')))
-                            # Check if the time is in seconds and convert
-                            elif 's' in took_time:
-                                etcd_error_stats.append(float(took_time.removesuffix('s')) * 1000)
-                            # Check if the time is in minutes and convert
-                            elif 'm' in took_time:
-                                took_min, took_sec = took_time.split('m')
-                                etcd_error_stats.append(((float(took_min) * 60000) + (float(took_sec) * 1000)))
-        print_stats(error_txt, etcd_pod, first_err, last_err, etcd_error_stats, error_count, expected_time)
+                calc_etcd_stats(error_txt,file,etcd_pod)
+
+
+def calc_etcd_stats(error_txt, file, etcd_pod):
+    '''Calculate the First and Last error timestamp, and Max, Mediam and Average time and count'''
+    # Set Variables
+    first_err = None
+    last_err = None
+    error_count = 0
+    etcd_error_stats: list = []
+    for line in file:
+        # Check if the line contains the following error
+        if error_txt in line:
+            #Count the amount of took too long errors
+            error_count += 1
+            # Find the last error's timestamp
+            last_err = re.findall(r'(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?=\.\d+Z|\s|\Z)', line)
+            # Find the first error's timestamp
+            if first_err == None:
+                first_err = re.findall(r'(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?=\.\d+Z|\s|\Z)', line)
+            # Sending the data to have the JSON Extracted
+            for result in extract_json_objects(line):
+                # Set the variable based on the took results
+                took_time = result['took']
+                # Collect the expected time
+                expected_time = result['expected-duration']
+                # Check if the time is in ms and convert
+                if 'ms' in took_time:
+                    etcd_error_stats.append(float(took_time.removesuffix('ms')))
+                # Check if the time is in seconds and convert
+                elif 's' in took_time:
+                    etcd_error_stats.append(float(took_time.removesuffix('s')) * 1000)
+                # Check if the time is in minutes and convert
+                elif 'm' in took_time:
+                    took_min, took_sec = took_time.split('m')
+                    etcd_error_stats.append(((float(took_min) * 60000) + (float(took_sec) * 1000)))
+    print_stats(error_txt, etcd_pod, first_err, last_err, etcd_error_stats, error_count, expected_time)
 
 def print_stats(error_txt: str, etcd_pod: str, first_err: str, last_err: list, etcd_error_stats: list, error_count: int, expected_time: str):
     '''Prints the etcd stats provided by etcd_stats function'''
@@ -291,103 +296,90 @@ def print_stats(error_txt: str, etcd_pod: str, first_err: str, last_err: list, e
     print(f'\tCount: {error_count}')
     print(f'\tExpected: {expected_time}',end='\n\n')
 
-def usage():
-    '''Prints the usage information for the program'''
-    print('''
-USAGE: etcd-ocp-diag.py
-etcd-ocp-diag is a simple script which provides reporting on etcd errors
-in a must-gather/inspect to pinpoint when slowness is occuring.
 
-Options:
---path         Sets the path of the must-gather
-                Example: etcd-ocp-diag.py --path <MG_PATH>
---errors       Displays known errors in the etcd logs along with their count
---stats        Displays Stats and Calculates Avg, Max, Min, and Median times for etcd errors
---ttl          Displays 'took too long' errors
---heartbeat    Displays 'leader failed to send out heartbeat on time' errors
---election     Displays 'elected leader' and 'lost leader' errors
---fdatasync    Displays 'slow fdatasync' errors
---buffer       Displays 'sending buffer is full' errors
---pod          Specify the name of the pod to search
-                Example: etcd-ocp-diag.py --path <MG_PATH> --ttl --pod etcd-ocp-master2
---date         Specify the date in YYYY-MM-DD format
-                Example: etcd-ocp-diag.py --path <MG_PATH> --ttl --pod etcd-ocp-master2 --date 2023-08-30
-                Example: etcd-ocp-diag.py --path <MG_PATH> --election --date 2023-08-30
---previous     Uses the previous.log. Can't not be combined with --rotated
---rotated      Includes checking rotated logs for errors and stats. Rotated logs *MUST* be previously extracted.
---help         Shows this help message
-''')
+def validate_date(date_string):
+    """Validate the date string is in YYYY-MM-DD format."""
+    try:
+        # Attempt to parse the date string
+        datetime.strptime(date_string, '%Y-%m-%d')
+        return date_string
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"Date must be in YYYY-MM-DD format: '{date_string}'")
 
 def main():
-
-    global mg_path
-    global pod_glob
-    global err_date_search
-    global err_date
-    global pod_known
-    global etcd_pod
-    global pod_log_version
-    global rotated_logs
+    global mg_path, pod_glob, err_date_search, err_date, pod_known, etcd_pod, pod_log_version, rotated_logs, compare_times
 
     pod_log_version = 'current'
     pod_glob = '**/openshift-etcd/pods/etcd-*'
+    error_txt = None
 
-    args, values = getopt.getopt(sys.argv[1:],'', ['path=', 'ttl', 'heartbeat', 'election', 'fdatasync', 'buffer', 'pod=', 'date=', 'help', 'errors', 'stats', 'previous', 'rotated'])
+    parser = argparse.ArgumentParser(description='Process etcd logs and gather statistics.')
 
-    if any(arg[0] == '--path' for arg in args):
-        if len(args) == 1:
-            print('Please provide an option along with the path to the must-gather')
-            print('Example: etcd-ocp-diag.py --path <MG_PATH> --ttl ')
-            usage()
-            sys.exit(1)
+    # Adding arguments
+    parser.add_argument('--path', type=str, required=True, help='Path to the must-gather')
+    parser.add_argument('--ttl', action='store_true', help='Check apply request took too long')
+    parser.add_argument('--heartbeat', action='store_true', help='Check failed to send out heartbeat')
+    parser.add_argument('--election', action='store_true', help='Check election issues')
+    parser.add_argument('--fdatasync', action='store_true', help='Check slow fdatasync')
+    parser.add_argument('--buffer', action='store_true', help='Check sending buffer is full')
+    parser.add_argument('--etcd_timeout', action='store_true', help='Check etcdserver: request timed out')
+    parser.add_argument('--pod', type=str, help='Specify the pod to analyze')
+    parser.add_argument('--date', type=validate_date, help='Specify date for error search in YYYY-MM-DD format')
+    parser.add_argument('--compare', action='store_true', help='Display only dates or times that happen in all pods')
+    parser.add_argument('--errors', action='store_true', help='Display etcd errors')
+    parser.add_argument('--stats', action='store_true', help='Display etcd stats')
+    parser.add_argument('--previous', action='store_true', help='Use previous logs')
+    parser.add_argument('--rotated', action='store_true', help='Use rotated logs')
 
-        if any(arg[0] == '--previous' for arg in args):
-            pod_log_version = 'previous'
-        else:
-            pod_log_version = 'current'
+    args = parser.parse_args()
 
-        if any(arg[0] == '--rotated' for arg in args):
-            rotated_logs = True
-
-        if any(arg[0] == '--rotated' for arg in args) and any(arg[0] == '--previous' for arg in args):
-            print('ERROR: Please select previous or rotated option.')
-            sys.exit(1)
-
-        for currentArgument, currentValue in args:
-            if currentArgument in '--stats':
-                for value in ['apply request took too long', 'slow fdatasync']:
-                    etcd_stats(get_dirs(), value)
-                sys.exit(0)
-            elif currentArgument in '--path':
-                mg_path = currentValue
-            elif currentArgument in '--ttl':
-                error_txt = 'apply request took too long'
-            elif currentArgument in '--heartbeat':
-                error_txt = 'failed to send out heartbeat'
-            elif currentArgument in '--election':
-                error_txt = 'election'
-            elif currentArgument in '--fdatasync':
-                error_txt = 'slow fdatasync'
-            elif currentArgument in '--buffer':
-                error_txt = 'sending buffer is full'
-            elif currentArgument in '--pod':
-                pod_glob = f'**/namespaces/openshift-etcd/pods/{currentValue}'
-                pod_known = True
-                etcd_pod = currentValue
-            elif currentArgument in '--date':
-                err_date = currentValue
-                err_date_search = True
-            elif currentArgument in '--errors':
-                etcd_errors(get_dirs())
-                sys.exit(0)
-            elif currentArgument in '--help':
-                usage()
-                sys.exit(1)
-        msg_count(get_dirs(),error_txt, err_date)
-    else:
-        print('Please provide a path for the must-gather')
-        usage()
+    if args.previous and args.rotated:
+        print('ERROR: Please select either previous or rotated option.')
         sys.exit(1)
+
+    if args.previous:
+        pod_log_version = 'previous'
+    if args.rotated:
+        rotated_logs = True
+
+    if args.compare:
+        compare_times = True
+    mg_path = args.path
+
+    # Set the error text based on the selected options
+    error_options = {
+        '--ttl': 'apply request took too long',
+        '--heartbeat': 'failed to send out heartbeat',
+        '--election': 'election',
+        '--fdatasync': 'slow fdatasync',
+        '--buffer': 'sending buffer is full',
+        '--etcd_timeout': 'etcdserver: request timed out',
+    }
+
+    for option in error_options.keys():
+        if getattr(args, option[2:]):  # Remove the '--' and check if it's True
+            error_txt = error_options[option]
+
+    if args.pod:
+        pod_glob = f'**/namespaces/openshift-etcd/pods/{args.pod}'
+        pod_known = True
+        etcd_pod = args.pod
+
+    if args.date:
+        err_date = args.date
+        err_date_search = True
+
+    if args.stats:
+        for value in ['apply request took too long', 'slow fdatasync']:
+            etcd_stats(get_dirs(), value)
+        sys.exit(0)
+
+    if args.errors:
+        etcd_errors(get_dirs())
+        sys.exit(0)
+
+    msg_count(get_dirs(), error_txt, err_date)
+
 
 if __name__ == '__main__':
     mg_path: str = ''
@@ -398,4 +390,5 @@ if __name__ == '__main__':
     err_date_search = False
     err_date: str = ''
     rotated_logs = False
+    compare_times = False
     main()
