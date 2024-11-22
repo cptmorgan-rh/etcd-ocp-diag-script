@@ -287,8 +287,8 @@ def print_stats(error_txt: str, etcd_pod: str, first_err: str, last_err: list, e
     '''Prints the etcd stats provided by etcd_stats function'''
     # Print out the data
     print(f'Stats about etcd "{error_txt}" messages: {etcd_pod}')
-    print(f'\tFirst Occurance: {first_err[0]}')
-    print(f'\tLast Occurance: {last_err[0]}')
+    print(f'\tFirst Occurrence: {first_err[0]}')
+    print(f'\tLast Occurrence: {last_err[0]}')
     print(f'\tMaximum: {max(etcd_error_stats,key=lambda x:float(x)):.4f}ms')
     print(f'\tMinimum: {min(etcd_error_stats,key=lambda x:float(x)):.4f}ms')
     print(f'\tMedian: {median(etcd_error_stats):.4f}ms')
