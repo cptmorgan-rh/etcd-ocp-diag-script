@@ -24,7 +24,7 @@ options:
   --ttl           Check apply request took too long
   --heartbeat     Check failed to send out heartbeat
   --election      Checks for leader elections messages
-  --lost-leader   Checks for lost leader errors
+  --lost_leader   Checks for lost leader errors
   --fdatasync     Check slow fdatasync
   --buffer        Check sending buffer is full
   --etcd_timeout  Check etcdserver: request timed out
