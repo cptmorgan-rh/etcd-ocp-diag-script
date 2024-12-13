@@ -14,22 +14,25 @@ USAGE
 ------------
 
 ```bash
-Options:
---path         Sets the path of the must-gather
-                Example: etcd-ocp-diag.py --path <MG_PATH>
---errors       Displays known errors in the etcd logs along with their count
---stats        Displays Stats and Calculates Avg, Max, Min, and Median times for etcd errors
---ttl          Displays 'took too long' errors
---heartbeat    Displays 'leader failed to send out heartbeat on time' errors
---election     Displays 'elected leader' and 'lost leader' errors
---fdatasync    Displays 'slow fdatasync' errors
---buffer       Displays 'sending buffer is full' errors
---pod          Specify the name of the pod to search
-                Example: etcd-ocp-diag.py --path <MG_PATH> --ttl --pod etcd-ocp-master2
---date         Specify the date in YYYY-MM-DD format
-                Example: etcd-ocp-diag.py --path <MG_PATH> --ttl --pod etcd-ocp-master2 --date 2023-08-30
-                Example: etcd-ocp-diag.py --path <MG_PATH> --election --date 2023-08-30
---previous     Uses the previous.log. Can't not be combined with --rotated
---rotated      Includes checking rotated logs for errors and stats. Rotated logs *MUST* be previously extracted.
---help         Shows this help message
+usage: etcd-ocp-diag.py [-h] --path PATH [--ttl] [--heartbeat] [--election] [--lost-leader] [--fdatasync] [--buffer] [--etcd_timeout] [--pod POD] [--date DATE] [--compare] [--errors] [--stats] [--previous] [--rotated]
+
+Process etcd logs and gather statistics.
+
+options:
+  -h, --help      show this help message and exit
+  --path PATH     Path to the must-gather
+  --ttl           Check apply request took too long
+  --heartbeat     Check failed to send out heartbeat
+  --election      Checks for leader elections messages
+  --lost-leader   Checks for lost leader errors
+  --fdatasync     Check slow fdatasync
+  --buffer        Check sending buffer is full
+  --etcd_timeout  Check etcdserver: request timed out
+  --pod POD       Specify the pod to analyze
+  --date DATE     Specify date for error search in YYYY-MM-DD format
+  --compare       Display only dates or times that happen in all pods
+  --errors        Display etcd errors
+  --stats         Display etcd stats
+  --previous      Use previous logs
+  --rotated       Use rotated logs
 ```

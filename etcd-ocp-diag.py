@@ -319,7 +319,8 @@ def main():
     parser.add_argument('--path', type=str, required=True, help='Path to the must-gather')
     parser.add_argument('--ttl', action='store_true', help='Check apply request took too long')
     parser.add_argument('--heartbeat', action='store_true', help='Check failed to send out heartbeat')
-    parser.add_argument('--election', action='store_true', help='Check election issues')
+    parser.add_argument('--election', action='store_true', help='Checks for leader elections messages')
+    parser.add_argument('--lost-leader', action='store_true', help='Checks for lost leader errors')
     parser.add_argument('--fdatasync', action='store_true', help='Check slow fdatasync')
     parser.add_argument('--buffer', action='store_true', help='Check sending buffer is full')
     parser.add_argument('--etcd_timeout', action='store_true', help='Check etcdserver: request timed out')
@@ -350,7 +351,8 @@ def main():
     error_options = {
         '--ttl': 'apply request took too long',
         '--heartbeat': 'failed to send out heartbeat',
-        '--election': 'election',
+        '--election': 'elected leader',
+        '--lost-leader': 'lost leader',
         '--fdatasync': 'slow fdatasync',
         '--buffer': 'sending buffer is full',
         '--etcd_timeout': 'etcdserver: request timed out',
