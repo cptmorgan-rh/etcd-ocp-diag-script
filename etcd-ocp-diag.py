@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+"""Parses OpenShift Must-Gathers to review etcd performance and errors."""
 
 import os
 import glob
@@ -12,8 +13,15 @@ from collections import Counter
 from statistics import median
 
 
-def extract_json_objects(text):
-    """Find JSON objects in text, and yield the decoded JSON data"""
+def extract_json_objects(text: str) -> json.loads:
+    """Find JSON objects in text, and yield the decoded JSON data
+
+    Args:
+        text (str): Error Text to be found by RegEx
+
+    Yields:
+        Iterator[json.loads]: Returns json results from etcd pods that match the RegEx
+    """
     for match in re.finditer(r"{.*}", text):
         try:
             yield json.loads(match.group())
@@ -21,20 +29,35 @@ def extract_json_objects(text):
             pass
 
 
-def get_etcd_pod(path: str):
-    """Returns the etcd Pod Name"""
+def get_etcd_pod(path: str) -> str:
+    """Returns the etcd Pod Name
+
+    Args:
+        path (str): Directory Path to etcd pod
+
+    Returns:
+        str: etcd pod name
+    """
     path_elements = path.split("/")
     return path_elements[-1]
 
 
 def etcd_errors(
-    directories: str,
+    directories: list,
     pod_known: bool,
     etcd_pod_name: str,
     pod_log_version: str,
     rotated_logs: bool,
-):
-    """Searches for common errors in the etcd_errors list"""
+) -> None:
+    """Searches for common errors in the etcd_errors list
+
+    Args:
+        directories (list): List of directories for the etcd pods
+        pod_known (bool): If True; the etcd pod name is known
+        etcd_pod_name (str): Name of the etcd Pod
+        pod_log_version (str): If the pod is Current or Previous
+        rotated_logs (bool): If True; look at rotated log files
+    """
     etcd_error_list = [
         "waiting for ReadIndex response took too long, retrying",
         "etcdserver: request timed out",
@@ -106,7 +129,7 @@ def etcd_errors(
 
 
 def msg_count(
-    directories: str,
+    directories: list,
     error_txt: str,
     err_date: str,
     pod_known: bool,
@@ -115,8 +138,20 @@ def msg_count(
     pod_log_version: str,
     rotated_logs: bool,
     compare_times: bool,
-):
-    """Search etcd pod logs for error_txt and returns count"""
+) -> None:
+    """Search etcd pod logs for error_txt and returns count
+
+    Args:
+        directories (list): List of directories for the etcd pods
+        error_txt (str): Error Text to search for
+        err_date (str): Error Date to search for
+        pod_known (bool): If true; etcd pod name is known
+        err_date_search (bool): _description_
+        etcd_pod_name (str): _description_
+        pod_log_version (str): _description_
+        rotated_logs (bool): _description_
+        compare_times (bool): _description_
+    """
     errors = []
     for directory in directories:
         json_dates: dict = Counter()
@@ -182,7 +217,7 @@ def msg_count(
         sys.exit(0)
 
 
-def print_rows(errors_list):
+def print_rows(errors_list: list) -> None:
     """Prints results in a fixed width tab format"""
     max_widths = {}
     # Get Max Width of Keys
@@ -202,7 +237,7 @@ def print_rows(errors_list):
         print()
 
 
-def compare(errors_list):
+def compare(errors_list: list) -> None:
     """Compares error counts for the same DATE across different PODs"""
     # Create a dictionary to group counts by DATE
     date_groups = {}
@@ -218,13 +253,13 @@ def compare(errors_list):
     for date, entries in date_groups.items():
         if len(entries) > 1:  # Only compare if there are multiple pods
             print(f"Date: {date}")
-            print(f'{"POD":<30} {"COUNT":<10}')
+            print(f"{'POD':<30} {'COUNT':<10}")
             for entry in entries:
-                print(f'{entry["POD"]:<30} {entry["COUNT"]:<10}')
+                print(f"{entry['POD']:<30} {entry['COUNT']:<10}")
             print()
 
 
-def get_dirs(mg_path: str, pod_glob: str):
+def get_dirs(mg_path: str, pod_glob: str) -> list:
     """Returns the directory for etcd pods"""
     input_dir = os.path.join(mg_path, pod_glob)
     pod_list = glob.glob(input_dir, recursive=True)
@@ -232,7 +267,7 @@ def get_dirs(mg_path: str, pod_glob: str):
     return [pod for pod in pod_list if re.search(pattern, pod)]
 
 
-def get_rotated_logs(dir_path: str):
+def get_rotated_logs(dir_path: str) -> list:
     """Returns rotated logs if they exist"""
     if os.listdir(dir_path):
         rotated_log_names = []
@@ -247,7 +282,7 @@ def get_rotated_logs(dir_path: str):
         return sorted_rotated_logs
 
 
-def extract_datetime(file_path):
+def extract_datetime(file_path) -> datetime:
     """Extracts Date / Time for Rotated Logs"""
     date_pattern = re.compile(r"\d{8}-\d{6}")
     # Extract the date and time part
@@ -259,7 +294,7 @@ def extract_datetime(file_path):
     return datetime.min  # Return the earliest datetime if no match is found
 
 
-def parse_file(file_path: str, error_txt: str):
+def parse_file(file_path: str, error_txt: str) -> bool:
     """Determines if the error_txt exists in the file and then parses if true"""
     with open(file_path, encoding="utf-8", mode="r") as file:
         file_contents = file.read()
@@ -270,9 +305,10 @@ def parse_file(file_path: str, error_txt: str):
 
 
 def etcd_stats(
-    directories: str, error_txt: str, pod_log_version: str, rotated_logs: bool
-):
+    directories: list, error_txt: str, pod_log_version: str, rotated_logs: bool
+) -> None:
     """Returns the performance stats of the etcd pod"""
+
     for directory in directories:
         etcd_pod_name = get_etcd_pod(directory)
         if rotated_logs:
@@ -281,8 +317,11 @@ def etcd_stats(
             if rotated_logs_list != []:
                 # Parse rotated logs if they do exist
                 for log in rotated_logs_list:
-                    with open(f"{log}", encoding="utf-8", mode="r") as file:
-                        calc_etcd_stats(error_txt, file, etcd_pod_name)
+                    if parse_file(f"{log}", error_txt):
+                        with open(f"{log}", encoding="utf-8", mode="r") as file:
+                            calc_etcd_stats(
+                                error_txt, file, etcd_pod_name, rotated=True
+                            )
         # Check to see if the error_txt exists prior to parsing the file
         if parse_file(f"{directory}/etcd/etcd/logs/{pod_log_version}.log", error_txt):
             # Open each pod log (current.log, previous.log) file to be read
@@ -291,10 +330,10 @@ def etcd_stats(
                 encoding="utf-8",
                 mode="r",
             ) as file:
-                calc_etcd_stats(error_txt, file, etcd_pod_name)
+                calc_etcd_stats(error_txt, file, etcd_pod_name, rotated=False)
 
 
-def calc_etcd_stats(error_txt: str, file, etcd_pod_name: str):
+def calc_etcd_stats(error_txt: str, file, etcd_pod_name: str, rotated: bool) -> None:
     """Calculate the First and Last error timestamp, and Max, Mediam and Average time and count"""
     # Set Variables
     first_err = None
@@ -325,15 +364,17 @@ def calc_etcd_stats(error_txt: str, file, etcd_pod_name: str):
                 # Check if the time is in ms and convert
                 if "ms" in took_time:
                     etcd_error_stats.append(float(took_time.removesuffix("ms")))
-                # Check if the time is in seconds and convert
-                elif "s" in took_time:
-                    etcd_error_stats.append(float(took_time.removesuffix("s")) * 1000)
                 # Check if the time is in minutes and convert
                 elif "m" in took_time:
                     took_min, took_sec = took_time.split("m")
+                    took_sec = took_sec.removesuffix("s")
                     etcd_error_stats.append(
                         ((float(took_min) * 60000) + (float(took_sec) * 1000))
                     )
+                # Check if the time is in seconds and convert
+                elif "s" in took_time:
+                    etcd_error_stats.append(float(took_time.removesuffix("s")) * 1000)
+
     print_stats(
         error_txt,
         etcd_pod_name,
@@ -342,6 +383,7 @@ def calc_etcd_stats(error_txt: str, file, etcd_pod_name: str):
         etcd_error_stats,
         error_count,
         expected_time,
+        rotated,
     )
 
 
@@ -353,21 +395,27 @@ def print_stats(
     etcd_error_stats: list,
     error_count: int,
     expected_time: str,
-):
+    rotated: bool,
+) -> None:
     """Prints the etcd stats provided by etcd_stats function"""
     # Print out the data
-    print(f'Stats about etcd "{error_txt}" messages: {etcd_pod_name}')
+    if not rotated:
+        print(f'Stats about etcd "{error_txt}" messages: {etcd_pod_name}')
+    else:
+        print(
+            f'Stats about etcd "{error_txt}" messages: {etcd_pod_name}\'s rotated log:'
+        )
     print(f"\tFirst Occurrence: {first_err[0]}")
     print(f"\tLast Occurrence: {last_err[0]}")
-    print(f"\tMaximum: {max(etcd_error_stats,key=lambda x:float(x)):.4f}ms")
-    print(f"\tMinimum: {min(etcd_error_stats,key=lambda x:float(x)):.4f}ms")
+    print(f"\tMaximum: {max(etcd_error_stats, key=lambda x: float(x)):.4f}ms")
+    print(f"\tMinimum: {min(etcd_error_stats, key=lambda x: float(x)):.4f}ms")
     print(f"\tMedian: {median(etcd_error_stats):.4f}ms")
     print(f"\tAverage: {sum(etcd_error_stats) / (len(etcd_error_stats) + 1):.4f}ms")
     print(f"\tCount: {error_count}")
     print(f"\tExpected: {expected_time}", end="\n\n")
 
 
-def validate_date(date_string):
+def validate_date(date_string) -> datetime:
     """Validate the date string is in YYYY-MM-DD format."""
     try:
         # Attempt to parse the date string
