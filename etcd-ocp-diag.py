@@ -1,15 +1,14 @@
 #!/usr/bin/env python3
 """Parses OpenShift Must-Gathers to review etcd performance and errors."""
 
-import os
-import glob
-import sys
-import json
-import re
 import argparse
+import json
 import mimetypes
-from datetime import datetime
+import re
+import sys
 from collections import Counter
+from datetime import datetime
+from pathlib import Path
 from statistics import median
 
 
@@ -29,7 +28,7 @@ def extract_json_objects(text: str) -> json.loads:
             pass
 
 
-def get_etcd_pod(path: str) -> str:
+def get_etcd_pod(directory_path: Path) -> str:
     """Returns the etcd Pod Name
 
     Args:
@@ -38,6 +37,7 @@ def get_etcd_pod(path: str) -> str:
     Returns:
         str: etcd pod name
     """
+    path = str(directory_path)
     path_elements = path.split("/")
     return path_elements[-1]
 
@@ -81,18 +81,20 @@ def etcd_errors(
     etcd_count = {}
 
     for directory in directories:
+        directory_path = Path(directory)
         if not pod_known:
-            etcd_pod_name = get_etcd_pod(directory)
+            etcd_pod_name = get_etcd_pod(directory_path)
 
         if rotated_logs:
             # Check to see if rotated logs exist
-            rotated_logs_list = get_rotated_logs(directory)
+            rotated_logs_list = get_rotated_logs(directory_path)
             if rotated_logs_list:
                 # Parse rotated logs if they do exist
                 for log in rotated_logs_list:
+                    log_path = Path(log)
                     mime_type, _ = mimetypes.guess_type(log)
                     if mime_type == "text/plain":
-                        with open(f"{log}", encoding="utf-8", mode="r") as file:
+                        with log_path.open(encoding="utf-8", mode="r") as file:
                             content = file.read()
                             for error_text in etcd_error_list:
                                 count = content.count(error_text)
@@ -103,11 +105,10 @@ def etcd_errors(
                                     else:
                                         etcd_count[key] = count
 
-        with open(
-            f"{directory}/etcd/etcd/logs/{pod_log_version}.log",
-            encoding="utf-8",
-            mode="r",
-        ) as file:
+        log_file_path = (
+            directory_path / "etcd" / "etcd" / "logs" / f"{pod_log_version}.log"
+        )
+        with log_file_path.open(encoding="utf-8", mode="r") as file:
             content = file.read()
             for error_text in etcd_error_list:
                 count = content.count(error_text)
@@ -154,59 +155,55 @@ def msg_count(
     """
     errors = []
     for directory in directories:
+        directory_path = Path(directory)
         json_dates: dict = Counter()
         if not pod_known:
-            etcd_pod_name = get_etcd_pod(directory)
+            etcd_pod_name = get_etcd_pod(directory_path)
+
         if rotated_logs:
             # Check to see if rotated logs exist
-            rotated_logs_list = get_rotated_logs(directory)
-            if rotated_logs_list != []:
-                # Parse rotated logs if they do exist
+            rotated_logs_list = get_rotated_logs(directory_path)
+
+            if rotated_logs_list:
+                # Parse rotated logs if they exist
                 for log in rotated_logs_list:
+                    log_path = Path(log)
                     mime_type, _ = mimetypes.guess_type(log)
+
                     if mime_type == "text/plain":
-                        with open(f"{log}", encoding="utf-8", mode="r") as file:
+                        with log_path.open(encoding="utf-8") as file:
                             for line in file:
-                                if err_date_search:
-                                    if error_txt in line:
-                                        if err_date in line:
-                                            for result in extract_json_objects(line):
-                                                _, ts_time = result.get(
-                                                    "ts", "Unknown"
-                                                ).split("T")
-                                                hr, minute, _ = ts_time.split(":")
-                                                json_dates[":".join([hr, minute])] += 1
-                                else:
-                                    if error_txt in line:
-                                        for result in extract_json_objects(line):
-                                            ts_date, _ = result.get(
-                                                "ts", "Unknown"
-                                            ).split("T")
-                                            json_dates[ts_date] += 1
-                for date, count in json_dates.items():
-                    errors.append({"POD": etcd_pod_name, "DATE": date, "COUNT": count})
-                json_dates.clear()
-        with open(
-            f"{directory}/etcd/etcd/logs/{pod_log_version}.log",
-            encoding="utf-8",
-            mode="r",
-        ) as file:
+                                if (
+                                    err_date_search
+                                    and error_txt in line
+                                    and err_date in line
+                                ) or (
+                                    not err_date_search
+                                    and error_txt in line
+                                    ):
+                                    for result in extract_json_objects(line):
+                                        ts_date = result.get("ts", "Unknown").split("T")[0]
+                                        json_dates[ts_date] += 1
+                        for date, count in json_dates.items():
+                            errors.append(
+                                {"POD": etcd_pod_name, "DATE": date, "COUNT": count}
+                            )
+                        json_dates.clear()
+
+        log_file_path = (
+            directory_path / "etcd" / "etcd" / "logs" / f"{pod_log_version}.log"
+        )
+        with log_file_path.open(encoding="utf-8", mode="r") as file:
             for line in file:
-                if err_date_search:
-                    if error_txt in line:
-                        if err_date in line:
-                            for result in extract_json_objects(line):
-                                _, ts_time = result.get("ts", "Unknown").split("T")
-                                hr, minute, _ = ts_time.split(":")
-                                json_dates[":".join([hr, minute])] += 1
-                else:
-                    if error_txt in line:
-                        for result in extract_json_objects(line):
-                            ts_date, _ = result.get("ts", "Unknown").split("T")
-                            json_dates[ts_date] += 1
-            for date, count in json_dates.items():
-                errors.append({"POD": etcd_pod_name, "DATE": date, "COUNT": count})
-            json_dates.clear()
+                if (err_date_search and error_txt in line and err_date in line) or (
+                    not err_date_search and error_txt in line
+                ):
+                    for result in extract_json_objects(line):
+                        ts_date = result.get("ts", "Unknown").split("T")[0]
+                        json_dates[ts_date] += 1
+        for date, count in json_dates.items():
+            errors.append({"POD": etcd_pod_name, "DATE": date, "COUNT": count})
+        json_dates.clear()
     if len(errors) != 0:
         if compare_times is True:
             compare(errors)
@@ -259,25 +256,27 @@ def compare(errors_list: list) -> None:
             print()
 
 
-def get_dirs(mg_path: str, pod_glob: str) -> list:
+def get_dirs(mg_path: str, pod_glob: str) -> list[str]:
     """Returns the directory for etcd pods"""
-    input_dir = os.path.join(mg_path, pod_glob)
-    pod_list = glob.glob(input_dir, recursive=True)
-    pattern = r"etcd-(?!guard)(?!quorum-guard)"
-    return [pod for pod in pod_list if re.search(pattern, pod)]
+    input_dir = Path(mg_path)
+    pod_list = list(input_dir.rglob(pod_glob))
+    pattern = r"^etcd-(?!guard(-.*)?$)(?!quorum-guard(-.*)?$)"
+    return [pod for pod in pod_list if re.search(pattern, pod.name)]
 
 
 def get_rotated_logs(dir_path: str) -> list:
     """Returns rotated logs if they exist"""
-    if os.listdir(dir_path):
+    dir_path = Path(dir_path)
+
+    if any(dir_path.iterdir()):  # Check if the directory is not empty
         rotated_log_names = []
-        rotated_file_list = glob.glob(
-            f"{dir_path}/etcd/etcd/logs/rotated/*", recursive=True
-        )
+        rotated_file_list = dir_path.glob("etcd/etcd/logs/rotated/*")
+
         pattern = r"[0-9]\.log\.+(?!\.gz)"
         for log in rotated_file_list:
-            if re.search(pattern, log):
-                rotated_log_names.append(log)
+            if re.search(pattern, log.name):  # Use log.name to get the filename
+                rotated_log_names.append(str(log))  # Convert Path to string
+
         sorted_rotated_logs = sorted(rotated_log_names, key=extract_datetime)
         return sorted_rotated_logs
 
@@ -296,12 +295,11 @@ def extract_datetime(file_path) -> datetime:
 
 def parse_file(file_path: str, error_txt: str) -> bool:
     """Determines if the error_txt exists in the file and then parses if true"""
-    with open(file_path, encoding="utf-8", mode="r") as file:
+    file_path = Path(file_path)
+
+    with file_path.open(encoding="utf-8") as file:
         file_contents = file.read()
-        if error_txt in file_contents:
-            return True
-        else:
-            return False
+        return error_txt in file_contents
 
 
 def etcd_stats(
@@ -311,25 +309,27 @@ def etcd_stats(
 
     for directory in directories:
         etcd_pod_name = get_etcd_pod(directory)
+        directory_path = Path(directory)  # Convert to Path object
+
         if rotated_logs:
             # Check to see if rotated logs exist
             rotated_logs_list = get_rotated_logs(directory)
-            if rotated_logs_list != []:
+            if rotated_logs_list:
                 # Parse rotated logs if they do exist
                 for log in rotated_logs_list:
-                    if parse_file(f"{log}", error_txt):
-                        with open(f"{log}", encoding="utf-8", mode="r") as file:
+                    if parse_file(log, error_txt):
+                        with log.open(encoding="utf-8") as file:
                             calc_etcd_stats(
                                 error_txt, file, etcd_pod_name, rotated=True
                             )
+
         # Check to see if the error_txt exists prior to parsing the file
-        if parse_file(f"{directory}/etcd/etcd/logs/{pod_log_version}.log", error_txt):
+        pod_log_path = (
+            directory_path / "etcd" / "etcd" / "logs" / f"{pod_log_version}.log"
+        )
+        if parse_file(pod_log_path, error_txt):
             # Open each pod log (current.log, previous.log) file to be read
-            with open(
-                f"{directory}/etcd/etcd/logs/{pod_log_version}.log",
-                encoding="utf-8",
-                mode="r",
-            ) as file:
+            with pod_log_path.open(encoding="utf-8") as file:
                 calc_etcd_stats(error_txt, file, etcd_pod_name, rotated=False)
 
 
