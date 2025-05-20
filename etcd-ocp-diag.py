@@ -28,7 +28,7 @@ def extract_json_objects(text: str) -> json.loads:
             pass
 
 
-def get_etcd_pod(path: str) -> str:
+def get_etcd_pod(directory_path: Path) -> str:
     """Returns the etcd Pod Name
 
     Args:
@@ -37,6 +37,7 @@ def get_etcd_pod(path: str) -> str:
     Returns:
         str: etcd pod name
     """
+    path = str(directory_path)
     path_elements = path.split("/")
     return path_elements[-1]
 
@@ -257,9 +258,9 @@ def compare(errors_list: list) -> None:
 
 def get_dirs(mg_path: str, pod_glob: str) -> list[str]:
     """Returns the directory for etcd pods"""
-    input_dir = Path(mg_path) / pod_glob
-    pod_list = list(input_dir.rglob("*"))
-    pattern = r"etcd-(?!guard)(?!quorum-guard)"
+    input_dir = Path(mg_path)
+    pod_list = list(input_dir.rglob(pod_glob))
+    pattern = r"^etcd-(?!guard(-.*)?$)(?!quorum-guard(-.*)?$)"
     return [pod for pod in pod_list if re.search(pattern, pod.name)]
 
 

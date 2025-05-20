@@ -7,13 +7,13 @@ requires-python = "<=3.9"
 
 [tool.ruff]
 lint.extend-select = [
-    "ARG",  # Flake8-unused-arguments – flags unused function arguments
+    "ARG",  # Flake8-unused-arguments - flags unused function arguments
     "F",    # Pyflakes
     "FURB", # Refurb
-    "I",    # isort – import ordering checks
+    "I",    # isort - import ordering checks
     "PL",   # Pylint
-    "PTH",  # Flake8-use-pathlib – encourages pathlib over os.path
-    "RUF",  # Ruff-specific rules – additional Ruff checks
+    "PTH",  # Flake8-use-pathlib - encourages pathlib over os.path
+    "RUF",  # Ruff-specific rules - additional Ruff checks
 ]
 
 lint.ignore = [
