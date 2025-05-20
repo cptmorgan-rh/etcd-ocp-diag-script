@@ -1,0 +1,24 @@
+[project]
+name = "etd-ocp-diag"
+versioon = "1.0.0"
+description = "Easy tool to review OpenShift etcd performance"
+readme = "README.md"
+requires-python = "<=3.9"
+
+[tool.ruff]
+lint.extend-select = [
+    "ARG",  # Flake8-unused-arguments - flags unused function arguments
+    "F",    # Pyflakes
+    "FURB", # Refurb
+    "I",    # isort - import ordering checks
+    "PL",   # Pylint
+    "PTH",  # Flake8-use-pathlib - encourages pathlib over os.path
+    "RUF",  # Ruff-specific rules - additional Ruff checks
+]
+
+lint.ignore = [
+    "E501",  # Pycodestyle - line too long
+    "PLR0912", # Pylint - Too many branches
+    "PLR0913", # Too many arguments
+    "PLR0915", # Too many statements
+]
