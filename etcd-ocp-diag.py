@@ -173,37 +173,44 @@ def msg_count(
                     if mime_type == "text/plain":
                         with log_path.open(encoding="utf-8") as file:
                             for line in file:
-                                if (
-                                    err_date_search
-                                    and error_txt in line
-                                    and err_date in line
-                                ) or (
-                                    not err_date_search
-                                    and error_txt in line
-                                    ):
+                                if err_date_search:
+                                    if error_txt in line:
+                                        if err_date in line:
+                                            for result in extract_json_objects(line):
+                                                _, ts_time = result.get(
+                                                    "ts", "Unknown"
+                                                ).split("T")
+                                                hr, minute, _ = ts_time.split(":")
+                                                json_dates[":".join([hr, minute])] += 1
+                                elif error_txt in line:
                                     for result in extract_json_objects(line):
-                                        ts_date = result.get("ts", "Unknown").split("T")[0]
+                                        ts_date, _ = result.get("ts", "Unknown").split(
+                                            "T"
+                                        )
                                         json_dates[ts_date] += 1
-                        for date, count in json_dates.items():
-                            errors.append(
-                                {"POD": etcd_pod_name, "DATE": date, "COUNT": count}
-                            )
-                        json_dates.clear()
+                for date, count in json_dates.items():
+                    errors.append({"POD": etcd_pod_name, "DATE": date, "COUNT": count})
+                json_dates.clear()
 
         log_file_path = (
             directory_path / "etcd" / "etcd" / "logs" / f"{pod_log_version}.log"
         )
         with log_file_path.open(encoding="utf-8", mode="r") as file:
             for line in file:
-                if (err_date_search and error_txt in line and err_date in line) or (
-                    not err_date_search and error_txt in line
-                ):
+                if err_date_search:
+                    if error_txt in line:
+                        if err_date in line:
+                            for result in extract_json_objects(line):
+                                _, ts_time = result.get("ts", "Unknown").split("T")
+                                hr, minute, _ = ts_time.split(":")
+                                json_dates[":".join([hr, minute])] += 1
+                elif error_txt in line:
                     for result in extract_json_objects(line):
-                        ts_date = result.get("ts", "Unknown").split("T")[0]
+                        ts_date, _ = result.get("ts", "Unknown").split("T")
                         json_dates[ts_date] += 1
-        for date, count in json_dates.items():
-            errors.append({"POD": etcd_pod_name, "DATE": date, "COUNT": count})
-        json_dates.clear()
+            for date, count in json_dates.items():
+                errors.append({"POD": etcd_pod_name, "DATE": date, "COUNT": count})
+            json_dates.clear()
     if len(errors) != 0:
         if compare_times is True:
             compare(errors)
