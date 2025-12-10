@@ -167,6 +167,25 @@ options:
   -i, --interactive  Run in interactive mode
 ```
 
+#### Enhanced Date Analysis
+
+When using `--ttl` with `--date`, the output includes an additional **MAX_TIME** column that shows the highest "took" time observed for that minute. This helps identify peak performance issues within specific time windows.
+
+**Example:**
+```bash
+uv run etcd-ocp-diag --path /path/to/must-gather --ttl --date 2024-12-09
+```
+
+**Output:**
+```
+POD                            DATE     COUNT  MAX_TIME
+etcd-master-0                  14:30    45     2500.1234ms
+etcd-master-0                  14:31    67     3200.5678ms
+etcd-master-1                  14:30    42     2450.9876ms
+```
+
+This feature provides insight into the worst-case performance during high-activity periods, similar to the statistics shown by the `--stats` command.
+
 ## Code Quality and Standards
 
 This project follows professional Python development standards:

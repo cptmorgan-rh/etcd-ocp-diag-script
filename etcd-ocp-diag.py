@@ -83,8 +83,10 @@ def etcd_errors(
     ]
     etcd_output = []
     etcd_count = {}
+    # Sort directories alphabetically by pod name
+    sorted_directories = sorted(directories, key=lambda d: get_etcd_pod(Path(d)))
 
-    for directory in directories:
+    for directory in sorted_directories:
         directory_path = Path(directory)
         if not pod_known:
             etcd_pod_name = get_etcd_pod(directory_path)
@@ -134,6 +136,29 @@ def etcd_errors(
         print("No errors found.")
 
 
+def _convert_took_to_ms(took_time: str) -> float:
+    """Convert took time string to milliseconds
+
+    Args:
+        took_time: Time string (e.g., "100ms", "1.5s", "1m30s")
+
+    Returns:
+        Time in milliseconds as float
+    """
+    # Check if the time is in ms and convert
+    if "ms" in took_time:
+        return float(took_time.removesuffix("ms"))
+    # Check if the time is in minutes and convert
+    elif "m" in took_time:
+        took_min, took_sec = took_time.split("m")
+        took_sec = took_sec.removesuffix("s")
+        return (float(took_min) * 60000) + (float(took_sec) * 1000)
+    # Check if the time is in seconds and convert
+    elif "s" in took_time:
+        return float(took_time.removesuffix("s")) * 1000
+    return 0.0
+
+
 def msg_count(
     directories: list,
     error_txt: str,
@@ -159,9 +184,13 @@ def msg_count(
         compare_times (bool): _description_
     """
     errors = []
-    for directory in directories:
+    # Sort directories alphabetically by pod name
+    sorted_directories = sorted(directories, key=lambda d: get_etcd_pod(Path(d)))
+    for directory in sorted_directories:
         directory_path = Path(directory)
         json_dates: dict = Counter()
+        # Track max time per minute when date search is enabled
+        max_times: dict = {}
         if not pod_known:
             etcd_pod_name = get_etcd_pod(directory_path)
 
@@ -186,7 +215,14 @@ def msg_count(
                                                     "ts", "Unknown"
                                                 ).split("T")
                                                 hr, minute, _ = ts_time.split(":")
-                                                json_dates[":".join([hr, minute])] += 1
+                                                time_key = ":".join([hr, minute])
+                                                json_dates[time_key] += 1
+                                                # Track max time for this minute
+                                                if "took" in result:
+                                                    took_time = result["took"]
+                                                    took_ms = _convert_took_to_ms(took_time)
+                                                    if time_key not in max_times or took_ms > max_times[time_key]:
+                                                        max_times[time_key] = took_ms
                                 elif error_txt in line:
                                     for result in extract_json_objects(line):
                                         ts_date, _ = result.get("ts", "Unknown").split(
@@ -194,8 +230,12 @@ def msg_count(
                                         )
                                         json_dates[ts_date] += 1
                 for date, count in json_dates.items():
-                    errors.append({"POD": etcd_pod_name, "DATE": date, "COUNT": count})
+                    if err_date_search and date in max_times:
+                        errors.append({"POD": etcd_pod_name, "DATE": date, "COUNT": count, "MAX_TIME": f"{max_times[date]:.4f}ms"})
+                    else:
+                        errors.append({"POD": etcd_pod_name, "DATE": date, "COUNT": count})
                 json_dates.clear()
+                max_times.clear()
 
         log_file_path = (
             directory_path / "etcd" / "etcd" / "logs" / f"{pod_log_version}.log"
@@ -208,14 +248,25 @@ def msg_count(
                             for result in extract_json_objects(line):
                                 _, ts_time = result.get("ts", "Unknown").split("T")
                                 hr, minute, _ = ts_time.split(":")
-                                json_dates[":".join([hr, minute])] += 1
+                                time_key = ":".join([hr, minute])
+                                json_dates[time_key] += 1
+                                # Track max time for this minute
+                                if "took" in result:
+                                    took_time = result["took"]
+                                    took_ms = _convert_took_to_ms(took_time)
+                                    if time_key not in max_times or took_ms > max_times[time_key]:
+                                        max_times[time_key] = took_ms
                 elif error_txt in line:
                     for result in extract_json_objects(line):
                         ts_date, _ = result.get("ts", "Unknown").split("T")
                         json_dates[ts_date] += 1
             for date, count in json_dates.items():
-                errors.append({"POD": etcd_pod_name, "DATE": date, "COUNT": count})
+                if err_date_search and date in max_times:
+                    errors.append({"POD": etcd_pod_name, "DATE": date, "COUNT": count, "MAX_TIME": f"{max_times[date]:.4f}ms"})
+                else:
+                    errors.append({"POD": etcd_pod_name, "DATE": date, "COUNT": count})
             json_dates.clear()
+            max_times.clear()
     if len(errors) != 0:
         # Sort by POD name alphabetically
         errors.sort(key=lambda x: x["POD"])
@@ -259,15 +310,24 @@ def compare(errors_list: list[dict[str, Any]]) -> None:
             date_groups[date] = []
         date_groups[date].append(entry)
 
+    # Check if MAX_TIME column exists
+    has_max_time = len(errors_list) > 0 and "MAX_TIME" in errors_list[0]
+
     # Print results for each date with more than one pod
     for date, entries in date_groups.items():
         if len(entries) > 1:  # Only compare if there are multiple pods
             print(f"Date: {date}")
-            print(f"{'POD':<30} {'COUNT':<10}")
+            if has_max_time:
+                print(f"{'POD':<30} {'COUNT':<10} {'MAX_TIME':<15}")
+            else:
+                print(f"{'POD':<30} {'COUNT':<10}")
             # Sort entries by POD name alphabetically
             sorted_entries = sorted(entries, key=lambda x: x["POD"])
             for entry in sorted_entries:
-                print(f"{entry['POD']:<30} {entry['COUNT']:<10}")
+                if has_max_time:
+                    print(f"{entry['POD']:<30} {entry['COUNT']:<10} {entry.get('MAX_TIME', 'N/A'):<15}")
+                else:
+                    print(f"{entry['POD']:<30} {entry['COUNT']:<10}")
             print()
 
 
@@ -321,8 +381,10 @@ def etcd_stats(
     directories: list, error_txt: str, pod_log_version: str, rotated_logs: bool
 ) -> None:
     """Returns the performance stats of the etcd pod"""
+    # Sort directories alphabetically by pod name
+    sorted_directories = sorted(directories, key=lambda d: get_etcd_pod(Path(d)))
 
-    for directory in directories:
+    for directory in sorted_directories:
         etcd_pod_name = get_etcd_pod(directory)
         directory_path = Path(directory)  # Convert to Path object
 
@@ -374,21 +436,26 @@ def calc_etcd_stats(error_txt: str, file, etcd_pod_name: str, rotated: bool) -> 
             for result in extract_json_objects(line):
                 # Set the variable based on the took results
                 took_time = result["took"]
+                # Get timestamp from JSON
+                timestamp = result.get("ts", "Unknown")
+                # Extract just the datetime portion (remove fractional seconds and Z)
+                if "T" in timestamp:
+                    timestamp = timestamp.split(".")[0] if "." in timestamp else timestamp.rstrip("Z")
                 # Collect the expected time
                 expected_time = result["expected-duration"]
                 # Check if the time is in ms and convert
                 if "ms" in took_time:
-                    etcd_error_stats.append(float(took_time.removesuffix("ms")))
+                    etcd_error_stats.append((float(took_time.removesuffix("ms")), timestamp))
                 # Check if the time is in minutes and convert
                 elif "m" in took_time:
                     took_min, took_sec = took_time.split("m")
                     took_sec = took_sec.removesuffix("s")
                     etcd_error_stats.append(
-                        ((float(took_min) * 60000) + (float(took_sec) * 1000))
+                        (((float(took_min) * 60000) + (float(took_sec) * 1000)), timestamp)
                     )
                 # Check if the time is in seconds and convert
                 elif "s" in took_time:
-                    etcd_error_stats.append(float(took_time.removesuffix("s")) * 1000)
+                    etcd_error_stats.append((float(took_time.removesuffix("s")) * 1000, timestamp))
 
     print_stats(
         error_txt,
@@ -422,10 +489,18 @@ def print_stats(
         )
     print(f"\tFirst Occurrence: {first_err[0]}")
     print(f"\tLast Occurrence: {last_err[0]}")
-    print(f"\tMaximum: {max(etcd_error_stats, key=lambda x: float(x)):.4f}ms")
-    print(f"\tMinimum: {min(etcd_error_stats, key=lambda x: float(x)):.4f}ms")
-    print(f"\tMedian: {median(etcd_error_stats):.4f}ms")
-    print(f"\tAverage: {sum(etcd_error_stats) / (len(etcd_error_stats) + 1):.4f}ms")
+
+    # Find maximum with timestamp
+    max_entry = max(etcd_error_stats, key=lambda x: float(x[0]))
+    max_value = max_entry[0]
+    max_timestamp = max_entry[1]
+    print(f"\tMaximum: {max_value:.4f}ms {max_timestamp}")
+
+    # Extract just the values for other calculations
+    values_only = [x[0] for x in etcd_error_stats]
+    print(f"\tMinimum: {min(values_only):.4f}ms")
+    print(f"\tMedian: {median(values_only):.4f}ms")
+    print(f"\tAverage: {sum(values_only) / (len(values_only) + 1):.4f}ms")
     print(f"\tCount: {error_count}")
     print(f"\tExpected: {expected_time}", end="\n\n")
 
