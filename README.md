@@ -9,20 +9,17 @@ The purpose of this script is to quickly search logs for known etcd issues in an
 INSTALLATION
 ------------
 
-### Using uv (Recommended)
+### Standard Installation
 
-This project uses [uv](https://docs.astral.sh/uv/) for dependency management.
-
-1. Install uv if you haven't already:
-   ```bash
-   curl -LsSf https://astral.sh/uv/install.sh | sh
-   ```
-
-2. Clone the repository and sync dependencies:
+1. Clone the repository:
    ```bash
    git clone <repository-url>
    cd etcd-ocp-diag
-   uv sync
+   ```
+
+2. Ensure Python 3.8+ is available:
+   ```bash
+   python3 --version
    ```
 
 ### Legacy Installation
@@ -31,26 +28,26 @@ This project uses [uv](https://docs.astral.sh/uv/) for dependency management.
 USAGE
 ------------
 
-### With uv (Recommended)
+### Run the Script
 
-Run directly with uv:
+Run directly with Python:
 ```bash
 # Show help
-uv run etcd-ocp-diag --help
+python3 etcd-ocp-diag.py --help
 
 # Interactive mode
-uv run etcd-ocp-diag -i
+python3 etcd-ocp-diag.py -i
 
 # Analyze errors
-uv run etcd-ocp-diag --path /path/to/must-gather --errors
+python3 etcd-ocp-diag.py --path /path/to/must-gather --errors
 
 # Check specific error types
-uv run etcd-ocp-diag --path /path/to/must-gather --ttl --pod etcd-master-1
+python3 etcd-ocp-diag.py --path /path/to/must-gather --ttl --pod etcd-master-1
 ```
 
-Or run as a Python module:
+Or run the script directly:
 ```bash
-uv run python -m etcd_ocp_diag --help
+./etcd-ocp-diag.py --help
 ```
 
 ### Interactive Mode
@@ -58,7 +55,7 @@ uv run python -m etcd_ocp_diag --help
 The tool now supports an enhanced interactive mode with folder navigation and command execution:
 
 ```bash
-uv run etcd-ocp-diag -i
+python3 etcd-ocp-diag.py -i
 ```
 
 #### Folder Navigation Phase
@@ -173,7 +170,7 @@ When using `--ttl` with `--date`, the output includes an additional **MAX_TIME**
 
 **Example:**
 ```bash
-uv run etcd-ocp-diag --path /path/to/must-gather --ttl --date 2024-12-09
+python3 etcd-ocp-diag.py --path /path/to/must-gather --ttl --date 2024-12-09
 ```
 
 **Output:**
@@ -202,20 +199,16 @@ This project follows professional Python development standards:
 
 - **Linting**: Configured with `ruff` for comprehensive code quality checks
 - **Type Checking**: Full type annotations for better IDE support and error prevention
-- **Package Management**: Modern `uv` for fast, reliable dependency management
 - **Cross-Platform**: Works on Unix, macOS, and Windows with proper path handling
 
 ### 📦 Project Structure
 
 ```
 etcd-ocp-diag/
-├── etcd_ocp_diag/           # Main package
-│   ├── __init__.py          # Core functionality with type annotations
-│   └── __main__.py          # Module entry point
-├── etcd-ocp-diag.py         # Standalone script (for legacy usage)
+├── etcd-ocp-diag.py         # Main script with full functionality
 ├── pyproject.toml           # Project configuration and dependencies
 ├── README.md                # Documentation
 └── .gitignore               # Git ignore patterns
 ```
 
-The codebase is production-ready with comprehensive error handling, clear documentation, and maintainable architecture suitable for enterprise environments.
+The codebase is production-ready with comprehensive error handling, clear documentation, and maintainable single-script architecture suitable for enterprise environments.

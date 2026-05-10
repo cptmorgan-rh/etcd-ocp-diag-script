@@ -694,7 +694,7 @@ def execute_command(args: argparse.Namespace) -> None:
     if args.compare:
         compare_times = True
 
-    mg_path = args.path if args.path else ""
+    mg_path = args.path or ""
 
     # Set the error text based on the selected options
     error_options = {
