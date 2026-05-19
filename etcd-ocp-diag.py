@@ -535,6 +535,7 @@ Available commands (no -- required in interactive mode):
   fdatasync                 Check slow fdatasync
   buffer                    Check sending buffer is full
   overloaded                Check leader is overloaded likely from slow disk
+  slow_network              Check local node might have slow network
   etcd_timeout              Check etcdserver: request timed out
   pod <pod_name>            Specify the pod to analyze
   date <YYYY-MM-DD>         Specify date for error search
@@ -587,6 +588,7 @@ def parse_interactive_input(user_input: str) -> Optional[argparse.Namespace]:
             "fdatasync",
             "buffer",
             "overloaded",
+            "slow_network",
             "etcd_timeout",
             "compare",
             "errors",
@@ -634,6 +636,11 @@ def parse_interactive_input(user_input: str) -> Optional[argparse.Namespace]:
     )
     parser.add_argument(
         "--overloaded", action="store_true", help="Check leader is overloaded likely from slow disk"
+    )
+    parser.add_argument(
+        "--slow_network",
+        action="store_true",
+        help="Check local node might have slow network",
     )
     parser.add_argument(
         "--etcd_timeout",
@@ -705,6 +712,7 @@ def execute_command(args: argparse.Namespace) -> None:
         "fdatasync": "slow fdatasync",
         "buffer": "sending buffer is full",
         "overloaded": "leader is overloaded likely from slow disk",
+        "slow_network": "local node might have slow network",
         "etcd_timeout": "etcdserver: request timed out",
     }
 
@@ -1096,6 +1104,11 @@ def main():
     )
     parser.add_argument(
         "--overloaded", action="store_true", help="Check leader is overloaded likely from slow disk"
+    )
+    parser.add_argument(
+        "--slow_network",
+        action="store_true",
+        help="Check local node might have slow network",
     )
     parser.add_argument(
         "--etcd_timeout",

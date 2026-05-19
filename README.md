@@ -138,7 +138,7 @@ etcd-diag> dirs     # Return to navigation
 ### Command Reference
 
 ```bash
-usage: etcd-ocp-diag [-h] --path PATH [--ttl] [--heartbeat] [--election] [--lost_leader] [--fdatasync] [--buffer] [--overloaded] [--etcd_timeout] [--pod POD] [--date DATE]
+usage: etcd-ocp-diag [-h] --path PATH [--ttl] [--heartbeat] [--election] [--lost_leader] [--fdatasync] [--buffer] [--overloaded] [--slow_network] [--etcd_timeout] [--pod POD] [--date DATE]
                      [--compare] [--errors] [--stats] [--previous] [--rotated] [-i]
 
 Process etcd logs and gather statistics.
@@ -153,6 +153,7 @@ options:
   --fdatasync        Check slow fdatasync
   --buffer           Check sending buffer is full
   --overloaded       Check leader is overloaded likely from slow disk
+  --slow_network     Check local node might have slow network
   --etcd_timeout     Check etcdserver: request timed out
   --pod POD          Specify the pod to analyze
   --date DATE        Specify date for error search in YYYY-MM-DD format
