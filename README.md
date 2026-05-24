@@ -138,40 +138,45 @@ etcd-diag> dirs     # Return to navigation
 ### Command Reference
 
 ```bash
-usage: etcd-ocp-diag [-h] --path PATH [--ttl] [--heartbeat] [--election] [--lost_leader] [--fdatasync] [--buffer] [--overloaded] [--slow_network] [--etcd_timeout] [--pod POD] [--date DATE]
+usage: etcd-ocp-diag [-h] --path PATH [--ttl] [--heartbeat] [--election] [--lost_leader] [--fdatasync] [--buffer] [--overloaded] [--slow_network] [--etcd_timeout] [--request_stats] [--pod POD] [--date DATE]
                      [--compare] [--errors] [--stats] [--previous] [--rotated] [-i]
 
 Process etcd logs and gather statistics.
 
 options:
-  -h, --help         show this help message and exit
-  --path PATH        Path to the must-gather
-  --ttl              Check apply request took too long
-  --heartbeat        Check failed to send out heartbeat
-  --election         Checks for leader elections messages
-  --lost_leader      Checks for lost leader errors
-  --fdatasync        Check slow fdatasync
-  --buffer           Check sending buffer is full
-  --overloaded       Check leader is overloaded likely from slow disk
-  --slow_network     Check local node might have slow network
-  --etcd_timeout     Check etcdserver: request timed out
-  --pod POD          Specify the pod to analyze
-  --date DATE        Specify date for error search in YYYY-MM-DD format
-  --compare          Display only dates or times that happen in all pods
-  --errors           Display etcd errors
-  --stats            Display etcd stats
-  --previous         Use previous logs
-  --rotated          Use rotated logs
-  -i, --interactive  Run in interactive mode
+  -h, --help           show this help message and exit
+  --path PATH          Path to the must-gather
+  --ttl                Check apply request took too long
+  --heartbeat          Check failed to send out heartbeat
+  --election           Checks for leader elections messages
+  --lost_leader        Checks for lost leader errors
+  --fdatasync          Check slow fdatasync
+  --buffer             Check sending buffer is full
+  --overloaded         Check leader is overloaded likely from slow disk
+  --slow_network       Check local node might have slow network
+  --etcd_timeout       Check etcdserver: request timed out
+  --request_stats      Check request stats
+  --pod POD            Specify the pod to analyze
+  --date DATE          Specify date for error search in YYYY-MM-DD format
+  --compare            Display only dates or times that happen in all pods
+  --errors             Display etcd errors
+  --stats              Display etcd stats
+  --previous           Use previous logs
+  --rotated            Use rotated logs
+  -i, --interactive    Run in interactive mode
 ```
 
 #### Enhanced Date Analysis
 
-When using `--ttl` with `--date`, the output includes an additional **MAX_TIME** column that shows the highest "took" time observed for that minute. This helps identify peak performance issues within specific time windows.
+When using `--ttl` or `--request_stats` with `--date`, the output includes an additional **MAX_TIME** column showing the highest latency observed within each minute. This helps identify peak performance issues within specific time windows.
+
+- `--ttl` reads the `took` field from `apply request took too long` log lines.
+- `--request_stats` reads the `time spent` field from `request stats` log lines.
 
 **Example:**
 ```bash
 python3 etcd-ocp-diag.py --path /path/to/must-gather --ttl --date 2024-12-09
+python3 etcd-ocp-diag.py --path /path/to/must-gather --request_stats --date 2024-12-09
 ```
 
 **Output:**

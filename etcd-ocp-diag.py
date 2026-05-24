@@ -218,9 +218,9 @@ def msg_count(
                                                 time_key = ":".join([hr, minute])
                                                 json_dates[time_key] += 1
                                                 # Track max time for this minute
-                                                if "took" in result:
-                                                    took_time = result["took"]
-                                                    took_ms = _convert_took_to_ms(took_time)
+                                                time_field = result.get("took") or result.get("time spent")
+                                                if time_field:
+                                                    took_ms = _convert_took_to_ms(time_field)
                                                     if time_key not in max_times or took_ms > max_times[time_key]:
                                                         max_times[time_key] = took_ms
                                 elif error_txt in line:
@@ -251,9 +251,9 @@ def msg_count(
                                 time_key = ":".join([hr, minute])
                                 json_dates[time_key] += 1
                                 # Track max time for this minute
-                                if "took" in result:
-                                    took_time = result["took"]
-                                    took_ms = _convert_took_to_ms(took_time)
+                                time_field = result.get("took") or result.get("time spent")
+                                if time_field:
+                                    took_ms = _convert_took_to_ms(time_field)
                                     if time_key not in max_times or took_ms > max_times[time_key]:
                                         max_times[time_key] = took_ms
                 elif error_txt in line:
@@ -537,6 +537,7 @@ Available commands (no -- required in interactive mode):
   overloaded                Check leader is overloaded likely from slow disk
   slow_network              Check local node might have slow network
   etcd_timeout              Check etcdserver: request timed out
+  request_stats             Check request stats
   pod <pod_name>            Specify the pod to analyze
   date <YYYY-MM-DD>         Specify date for error search
   compare                   Display only dates or times that happen in all pods
@@ -590,6 +591,7 @@ def parse_interactive_input(user_input: str) -> Optional[argparse.Namespace]:
             "overloaded",
             "slow_network",
             "etcd_timeout",
+            "request_stats",
             "compare",
             "errors",
             "stats",
@@ -646,6 +648,11 @@ def parse_interactive_input(user_input: str) -> Optional[argparse.Namespace]:
         "--etcd_timeout",
         action="store_true",
         help="Check etcdserver: request timed out",
+    )
+    parser.add_argument(
+        "--request_stats",
+        action="store_true",
+        help="Check request stats",
     )
     parser.add_argument("--pod", type=str, help="Specify the pod to analyze")
     parser.add_argument(
@@ -714,6 +721,7 @@ def execute_command(args: argparse.Namespace) -> None:
         "overloaded": "leader is overloaded likely from slow disk",
         "slow_network": "local node might have slow network",
         "etcd_timeout": "etcdserver: request timed out",
+        "request_stats": "request stats",
     }
 
     for option, error_query in error_options.items():
@@ -1114,6 +1122,11 @@ def main():
         "--etcd_timeout",
         action="store_true",
         help="Check etcdserver: request timed out",
+    )
+    parser.add_argument(
+        "--request_stats",
+        action="store_true",
+        help="Check request stats",
     )
     parser.add_argument("--pod", type=str, help="Specify the pod to analyze")
     parser.add_argument(
